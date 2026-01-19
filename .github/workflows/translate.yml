@@ -1,0 +1,100 @@
+name: Novel Translator
+
+on:
+  workflow_dispatch:
+    inputs:
+      START_CHAPTER:
+        description: "Start chapter"
+        required: true
+        default: "1"
+      END_CHAPTER:
+        description: "End chapter"
+        required: true
+        default: "100"
+      BATCH_SIZE:
+        description: "Batch size"
+        required: true
+        default: "1"
+      START_API_INDEX:
+        description: "Start Gemini API key index"
+        required: true
+        default: "0"
+      TRANSLATOR_BRANCH:
+        description: "Translator repo branch to checkout"
+        required: true
+        default: "main"
+
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+
+    env:
+      # 🔐 Secrets (keep private)
+      GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+      GEMINI_MODEL_NAME: ${{ secrets.GEMINI_MODEL_NAME }}
+      NOVEL_SLUG: ${{ secrets.NOVEL_SLUG }}
+      BASE_URL_TEMPLATE: ${{ secrets.BASE_URL_TEMPLATE }}
+      PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      # 🧮 Inputs
+      START_CHAPTER: ${{ inputs.START_CHAPTER }}
+      END_CHAPTER: ${{ inputs.END_CHAPTER }}
+      BATCH_SIZE: ${{ inputs.BATCH_SIZE }}
+      START_API_INDEX: ${{ inputs.START_API_INDEX }}
+      TRANSLATOR_BRANCH: ${{ inputs.TRANSLATOR_BRANCH }}
+
+    steps:
+      # 1️⃣ Checkout THIS repo (control repo – where output will be committed)
+      - name: Checkout control repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      # 2️⃣ Clone the private translator repo
+      - name: Clone translator repo
+        run: |
+          git clone https://$PAT_TOKEN@github.com/heinthantzin-6373/novel-translator-by-htz.git translator_repo
+
+      # 3️⃣ Checkout specific branch in translator repo
+      - name: Checkout translator branch
+        run: |
+          cd translator_repo
+          git checkout $TRANSLATOR_BRANCH
+
+      # 4️⃣ Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 5️⃣ Create virtualenv and install dependencies (from translator repo)
+      - name: Create virtualenv and install dependencies
+        run: |
+          cd translator_repo
+          python -m venv venv
+          source venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 6️⃣ Run translator from translator repo
+      - name: Run translator
+        run: |
+          cd translator_repo
+          source venv/bin/activate
+          python -u server_translater.py
+
+      # 7️⃣ Commit output back to THIS repo
+      - name: Commit output
+        run: |
+          git config user.name "actions-bot"
+          git config user.email "actions@github.com"
+
+          FILE="output/translations/${NOVEL_SLUG}-novel.json"
+
+          if [ -f "$FILE" ]; then
+            git add "$FILE"
+            git diff --cached --quiet || git commit -m "Auto update chapters ${START_CHAPTER}-${END_CHAPTER}"
+            git push
+          else
+            echo "⚠️ File $FILE does not exist, skipping commit"
+          fi
