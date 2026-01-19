@@ -83,23 +83,18 @@ jobs:
           source venv/bin/activate
           python -u server_translater.py
 
-      - name: Copy output to control repo
+      - name: Commit output to private translator repo
         run: |
-          mkdir -p output/translations
-          cp translator_repo/output/translations/${NOVEL_SLUG}-novel.json output/translations/
-  
-      # 7️⃣ Commit output back to THIS repo
-      - name: Commit output
-        run: |
+          cd translator_repo
           git config user.name "actions-bot"
           git config user.email "actions@github.com"
-
+      
           FILE="output/translations/${NOVEL_SLUG}-novel.json"
-
+      
           if [ -f "$FILE" ]; then
             git add "$FILE"
             git diff --cached --quiet || git commit -m "Auto update chapters ${START_CHAPTER}-${END_CHAPTER}"
-            git push
+            git push origin $TRANSLATOR_BRANCH
           else
             echo "⚠️ File $FILE does not exist, skipping commit"
           fi
