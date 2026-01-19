@@ -83,6 +83,11 @@ jobs:
           source venv/bin/activate
           python -u server_translater.py
 
+      - name: Copy output to control repo
+        run: |
+          mkdir -p output/translations
+          cp translator_repo/output/translations/${NOVEL_SLUG}-novel.json output/translations/
+  
       # 7️⃣ Commit output back to THIS repo
       - name: Commit output
         run: |
