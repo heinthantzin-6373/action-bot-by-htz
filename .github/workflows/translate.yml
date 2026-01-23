@@ -74,14 +74,14 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r action/translator_requirements.txt
 
       # 6️⃣ Run translator from translator repo
       - name: Run translator
         run: |
           cd translator_repo
           source venv/bin/activate
-          python -u server_translater.py
+          python -u action/server_translater.py
 
       - name: Copy output to control repo
         run: |
